@@ -1,6 +1,7 @@
 {
   "name": "@anton-seriesfi/ts-typie",
-  "version": "3.0.0",
+  "private": false,
+  "version": "3.0.2",
   "description": "A small utility for installing TypeScript definition files",
   "main": "app.js",
   "scripts": {
