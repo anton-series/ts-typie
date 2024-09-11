@@ -1,12 +1,9 @@
 {
-    "compilerOptions": {
-        "module": "commonjs",
-        "target": "es5",
-        "noImplicitAny": false,
-        "sourceMap": false,
-        "lib": [
-            "es6",
-            "es7"
-        ]
-    }
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2018",
+    "noImplicitAny": true,
+    "sourceMap": false,
+    "lib": ["es6", "es7"]
+  }
 }

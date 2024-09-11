@@ -1,94 +1,96 @@
 #!/usr/bin/env node
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var fs = require("fs");
-var path = require("path");
-var child_process_1 = require("child_process");
-var request = require("request");
-var chalk = require("chalk");
-var figures = require("figures");
-var args = require("args");
-var commandExists = require("command-exists");
+const fs = require("fs");
+const path = require("path");
+const child_process_1 = require("child_process");
+const request = require("request");
+const chalk = require("chalk");
+const figures = require("figures");
+const args = require("args");
+const commandExists = require("command-exists");
 // list of supported package manager tools
 // the first one found will be default
-var tools = {
-    yarn: { command: 'yarn add -D' },
-    npm: { command: 'npm install -D' }
+const tools = {
+    yarn: { command: "yarn add -D" },
+    npm: { command: "npm install -D" },
 };
 // look for the first available tool
-var defaultTool;
-for (var _i = 0, _a = Object.keys(tools); _i < _a.length; _i++) {
-    var tool_1 = _a[_i];
-    if (commandExists.sync(tool_1)) {
-        defaultTool = tool_1;
+let defaultTool;
+for (const tool of Object.keys(tools)) {
+    if (commandExists.sync(tool)) {
+        defaultTool = tool;
         break;
     }
 }
 if (defaultTool === undefined) {
-    console.error('Couldn\'t find a supported package manager tool.');
+    console.error("Couldn't find a supported package manager tool.");
 }
 // support for overriding default
-args.option('tool', 'Which package manager tool to use', defaultTool);
-var opts = args.parse(process.argv, {
-    name: 'ts-typie',
+args.option("tool", "Which package manager tool to use", defaultTool);
+const opts = args.parse(process.argv, {
+    name: "ts-typie",
     mri: undefined,
-    mainColor: 'yellow',
-    subColor: 'dim'
+    mainColor: "yellow",
+    subColor: "dim",
 });
-var tool = tools[opts.tool];
+const tool = tools[opts.tool];
 // check if package.json exists
-var cwd = process.cwd();
-var packagePath = path.join(cwd, 'package.json');
+const cwd = process.cwd();
+const packagePath = path.join(cwd, "package.json");
 if (!fs.existsSync(packagePath)) {
-    console.error('No package.json file found!');
+    console.error("No package.json file found!");
     process.exit();
 }
 // Package.json exists
-var pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-var dependencies = [];
+const pkg = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+let dependencies = [];
 if (pkg.dependencies) {
-    dependencies.push.apply(dependencies, Object.keys(pkg.dependencies));
+    dependencies.push(...Object.keys(pkg.dependencies));
 }
 if (pkg.devDependencies) {
-    dependencies.push.apply(dependencies, Object.keys(pkg.devDependencies));
+    dependencies.push(...Object.keys(pkg.devDependencies));
 }
 // Filter out already installed types
-var alreadyInstalledTypes = dependencies.filter(function (d) { return /^@types\//.test(d); });
-;
-dependencies = dependencies.filter(function (d) { return !/^@types\//.test(d); });
-var _loop_1 = function (dependency) {
-    var dependencyString = chalk.bold(dependency);
+let alreadyInstalledTypes = dependencies.filter((d) => /^@types\//.test(d));
+dependencies = dependencies.filter((d) => !/^@types\//.test(d));
+processAllDependencies(dependencies);
+async function processAllDependencies(dependencies) {
+    for (let dependency of dependencies) {
+        await processDependency(dependency);
+    }
+}
+async function processDependency(dependency) {
+    const dependencyString = chalk.bold(dependency);
     // Check if types are already installed
-    if (alreadyInstalledTypes.includes('@types/' + dependency)) {
-        console.log(chalk.yellow(figures.play, "Types for " + dependencyString + " already installed. Skipping..."));
-        return "continue";
+    if (alreadyInstalledTypes.includes("@types/" + dependency)) {
+        console.log(chalk.yellow(figures.play, `Types for ${dependencyString} already installed. Skipping...`));
+        return;
     }
     // Check for included types
-    var pkgPath = path.join(cwd, 'node_modules', dependency, 'package.json');
+    let pkgPath = path.join(cwd, "node_modules", dependency, "package.json");
     if (fs.existsSync(pkgPath)) {
-        var pkg_1 = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-        if (pkg_1.types || pkg_1.typings) {
-            console.log(chalk.yellow(figures.warning, "Module " + dependencyString + " includes own types. Skipping..."));
-            return "continue";
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+        if (pkg.types || pkg.typings) {
+            console.log(chalk.yellow(figures.warning, `Module ${dependencyString} includes own types. Skipping...`));
+            return;
         }
     }
-    // Check if types are available    
-    (function (dependency) {
-        request('https://www.npmjs.com/package/@types/' + dependency, function (err, res, body) {
+    // Check if types are available
+    await new Promise((resolve) => ((dependency) => {
+        request("https://www.npmjs.com/package/@types/" + dependency, (err, res, body) => {
             if (res.statusCode == 200) {
-                child_process_1.exec(tool.command + " @types/" + dependency, function (err, stdout, stderr) {
+                child_process_1.exec(`${tool.command} @types/${dependency}`, (err, stdout, stderr) => {
                     if (!err) {
-                        console.log(chalk.green(figures.tick, "@types/" + dependencyString + " installed successfully!"));
+                        console.log(chalk.green(figures.tick, `@types/${dependencyString} installed successfully!`));
                     }
+                    resolve(undefined);
                 });
             }
             else {
-                console.log(chalk.red(figures.cross, "No types found for " + dependencyString + " in registry. Skipping..."));
+                console.log(chalk.red(figures.cross, `No types found for ${dependencyString} in registry. Skipping...`));
+                resolve(undefined);
             }
         });
-    })(dependency);
-};
-for (var _b = 0, dependencies_1 = dependencies; _b < dependencies_1.length; _b++) {
-    var dependency = dependencies_1[_b];
-    _loop_1(dependency);
+    })(dependency));
 }
