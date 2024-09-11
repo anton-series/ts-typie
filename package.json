@@ -1,17 +1,17 @@
 {
-  "name": "ts-typie",
-  "version": "2.0.0",
+  "name": "@anton-seriesfi/ts-typie",
+  "version": "3.0.0",
   "description": "A small utility for installing TypeScript definition files",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc"
   },
-  "author": " Tim Specht",
+  "author": "Anton Ivanov",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "https://github.com/T-Specht/ts-typie.git"
+    "url": "https://github.com/anton-series/ts-typie.git"
   },
   "dependencies": {
     "args": "^5.0.0",
