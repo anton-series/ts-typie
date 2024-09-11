@@ -11,8 +11,8 @@ import * as commandExists from "command-exists";
 // list of supported package manager tools
 // the first one found will be default
 const tools = {
+  npm: { command: "npm install --save-dev" },
   yarn: { command: "yarn add -D" },
-  npm: { command: "npm install -D" },
 } as Record<string, { command: string } | undefined>;
 
 // look for the first available tool
@@ -67,12 +67,44 @@ dependencies = dependencies.filter((d) => !/^@types\//.test(d));
 processAllDependencies(dependencies);
 
 async function processAllDependencies(dependencies: string[]) {
+  const missingPackages: string[] = [];
   for (let dependency of dependencies) {
-    await processDependency(dependency);
+    const packageToInstall = await processDependency(dependency);
+    if (packageToInstall) {
+      missingPackages.push(packageToInstall);
+    }
+  }
+
+  if (missingPackages.length > 0) {
+    await installPackages(missingPackages);
   }
 }
 
-async function processDependency(dependency: string) {
+async function installPackages(packages: string[]) {
+  const packageString = packages.join(" ");
+  const command = `${tool.command} ${packageString}`;
+
+  console.log(
+    chalk.green(
+      figures.play,
+      `Installing types for ${packages.length} packages: ${packageString}`
+    )
+  );
+
+  await new Promise((resolve, reject) => {
+    exec(command, (err, stdout, stderr) => {
+      if (err) {
+        console.error(stderr);
+        reject(err);
+      } else {
+        console.log(stdout);
+        resolve(stdout);
+      }
+    });
+  });
+}
+
+async function processDependency(dependency: string): Promise<string | null> {
   const dependencyString = chalk.bold(dependency);
 
   // Check if types are already installed
@@ -84,7 +116,7 @@ async function processDependency(dependency: string) {
         `Types for ${dependencyString} already installed. Skipping...`
       )
     );
-    return;
+    return null;
   }
 
   // Check for included types
@@ -99,43 +131,28 @@ async function processDependency(dependency: string) {
           `Module ${dependencyString} includes own types. Skipping...`
         )
       );
-      return;
+      return null;
     }
   }
 
   // Check if types are available
 
-  await new Promise((resolve) =>
+  return await new Promise((resolve) =>
     ((dependency) => {
-      request(
-        "https://www.npmjs.com/package/@types/" + dependency,
-        (err, res, body) => {
-          if (res.statusCode == 200) {
-            exec(
-              `${tool.command} @types/${dependency}`,
-              (err, stdout, stderr) => {
-                if (!err) {
-                  console.log(
-                    chalk.green(
-                      figures.tick,
-                      `@types/${dependencyString} installed successfully!`
-                    )
-                  );
-                }
-                resolve(undefined);
-              }
-            );
-          } else {
-            console.log(
-              chalk.red(
-                figures.cross,
-                `No types found for ${dependencyString} in registry. Skipping...`
-              )
-            );
-            resolve(undefined);
-          }
+      const packageName = `@types/${dependency}`;
+      request("https://registry.npmjs.org/" + packageName, (err, res, body) => {
+        if (res.statusCode == 200) {
+          resolve(packageName);
+        } else {
+          console.log(
+            chalk.red(
+              figures.cross,
+              `No types found for ${dependencyString} in registry. Skipping...`
+            )
+          );
+          resolve(null);
         }
-      );
+      });
     })(dependency)
   );
 }
