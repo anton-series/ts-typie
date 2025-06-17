@@ -13,6 +13,7 @@ const commandExists = require("command-exists");
 // the first one found will be default
 const tools = {
     npm: { command: "npm install --save-dev" },
+    pnpm: { command: "pnpm add -D" },
     yarn: { command: "yarn add -D" },
 };
 // look for the first available tool

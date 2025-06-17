@@ -12,7 +12,7 @@ import * as commandExists from "command-exists";
 // the first one found will be default
 const tools = {
   npm: { command: "npm install --save-dev" },
-  pnpm: { command: "pnpm install --save-dev" },
+  pnpm: { command: "pnpm add -D" },
   yarn: { command: "yarn add -D" },
 } as Record<string, { command: string } | undefined>;
 
